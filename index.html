@@ -1,63 +1,94 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Python Sandbox</title>
-  <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/skulpt.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/skulpt-stdlib.js"></script>
+  <meta charset="UTF-8">
+  <title>Python Sandbox with File Menu</title>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.11.0/brython_stdlib.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/mode/python/python.min.js"></script>
   <style>
-    body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
-    .sidebar { width: 200px; background: #f0f0f0; padding: 10px; overflow-y: auto; }
-    .editor { flex: 1; padding: 10px; }
-    textarea { width: 100%; height: 300px; font-family: monospace; }
-    button { padding: 10px 20px; margin-top: 10px; }
-    pre { background: #eee; padding: 10px; min-height: 100px; }
+    body { font-family: Arial; margin: 0; display: flex; height: 100vh; }
+    #sidebar { width: 200px; background: #2c3e50; color: white; padding: 10px; overflow-y: auto; }
+    #sidebar h3 { margin-top: 0; }
+    #sidebar button { width: 100%; margin-top: 10px; }
+    #editor { flex-grow: 1; display: flex; flex-direction: column; }
+    #editor-area { flex-grow: 1; }
+    #output { background: black; color: lime; padding: 10px; height: 150px; overflow-y: auto; font-family: monospace; }
+    .file { cursor: pointer; padding: 5px; margin: 2px 0; background: #34495e; }
+    .file.active { background: #1abc9c; }
   </style>
 </head>
-<body>
-  <div class="sidebar">
-    <h3>Code Files</h3>
-    <ul id="fileList">
-      <li onclick="loadFile('variables')">variables.py</li>
-      <li onclick="loadFile('loops')">loops.py</li>
-      <!-- Add more files here -->
-    </ul>
-  </div>
+<body onload="brython()">
 
-  <div class="editor">
-    <h2>Python Sandbox</h2>
-    <textarea id="codeArea">print("Hello from Skulpt!")</textarea><br>
-    <button onclick="runCode()">Run Code</button>
-    <h3>Output:</h3>
-    <pre id="output"></pre>
-  </div>
+<div id="sidebar">
+  <h3>Files</h3>
+  <div id="file-list"></div>
+  <button onclick="addNewFile()">+ Add New File</button>
+</div>
 
-  <script>
-    const fileContents = {
-      variables: 'name = "Alice"\nage = 25\nprint(name, "is", age, "years old.")',
-      loops: 'for i in range(5):\n    print(i)'
-    };
+<div id="editor">
+  <div id="editor-area"></div>
+  <button onclick="runCode()">Run</button>
+  <pre id="output"></pre>
+</div>
 
-    function loadFile(fileName) {
-      document.getElementById("codeArea").value = fileContents[fileName];
-    }
+<script type="text/python">
+from browser import document, window, html, stdout
 
-    function outf(text) {
-      document.getElementById("output").innerHTML += text + '\n';
-    }
+files = { "main.py": "print('Hello from main.py')" }
+current_file = "main.py"
 
-    function runCode() {
-      let prog = document.getElementById("codeArea").value;
-      document.getElementById("output").innerHTML = '';
-      Sk.configure({ output: outf, read: builtinRead });
-      Sk.misceval.asyncToPromise(() => Sk.importMainWithBody("<stdin>", false, prog));
-    }
+class Output:
+    def write(self, data):
+        document["output"].text += str(data)
+    def flush(self): pass
 
-    function builtinRead(x) {
-      if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined)
-        throw "File not found: '" + x + "'";
-      return Sk.builtinFiles["files"][x];
-    }
-  </script>
+stdout.set_output(Output())
+
+def render_file_list():
+    file_list = document["file-list"]
+    file_list.clear()
+    for fname in files:
+        file_div = html.DIV(fname, Class="file")
+        if fname == current_file:
+            file_div.classList.add("active")
+        file_div.bind("click", lambda ev, name=fname: load_file(name))
+        file_list <= file_div
+
+def load_file(name):
+    global current_file
+    files[current_file] = window.editor.getValue()
+    current_file = name
+    window.editor.setValue(files[name])
+    render_file_list()
+
+def addNewFile():
+    global current_file
+    fname = window.prompt("Enter new file name:", "newfile.py")
+    if fname and fname not in files:
+        files[fname] = "# New Python file"
+        current_file = fname
+        window.editor.setValue(files[fname])
+        render_file_list()
+
+def runCode():
+    document["output"].text = ""
+    code = window.editor.getValue()
+    exec(code)
+
+render_file_list()
+</script>
+
+<script>
+let editor = CodeMirror(document.getElementById('editor-area'), {
+  mode: 'python',
+  lineNumbers: true,
+  value: "print('Hello from main.py')"
+});
+window.editor = editor;
+</script>
+
 </body>
 </html>
